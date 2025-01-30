@@ -27,6 +27,9 @@ export const metadata: Metadata = {
       "Free online tool to compress and optimize your images. Support WebP, AVIF, PNG, and JPEG formats with best compression ratio.",
   },
   icons: [{ rel: "icon", url: "/icon.png" }],
+  verification: {
+    google: "1f-luF6aIQTixAwaiwFrNX-kJvPG-gI43ubIISoYGKc",
+  },
 };
 
 export default function RootLayout({
