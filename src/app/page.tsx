@@ -1,7 +1,24 @@
 "use client";
 
-import { api } from "~/trpc/react";
 import { useState } from "react";
+import { api } from "~/trpc/react";
+
+type ImageMimeType =
+  | "image/png"
+  | "image/jpeg"
+  | "image/jpg"
+  | "image/webp"
+  | "image/avif";
+
+interface CompressionResult {
+  originalSize: number;
+  compressedSize: number;
+  savedBytes: number;
+  compressionRatio: number;
+  compressedImage: string;
+  originalType: string;
+  outputType: string;
+}
 
 function formatFileSize(bytes: number): string {
   if (bytes === 0) return "0 B";
@@ -14,17 +31,10 @@ function formatFileSize(bytes: number): string {
 export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [compressionResult, setCompressionResult] = useState<{
-    originalSize: number;
-    compressedSize: number;
-    savedBytes: number;
-    compressionRatio: number;
-    compressedImage: string;
-    originalType: string;
-    outputType: string;
-  } | null>(null);
+  const [compressionResult, setCompressionResult] =
+    useState<CompressionResult | null>(null);
   const [compressionOptions, setCompressionOptions] = useState({
-    outputFormat: "image/webp",
+    outputFormat: "image/webp" as ImageMimeType,
   });
   const [uploadedFile, setUploadedFile] = useState<{
     size: number;
@@ -37,21 +47,18 @@ export default function Home() {
 
   const compressMutation = api.compress.compress.useMutation({
     onSuccess: (data) => {
-      console.log("Compression successful:", data);
       setCompressionResult(data);
       setIsLoading(false);
       setStage("idle");
       setProgress(100);
     },
     onError: (error) => {
-      console.error("Compression error:", error);
       setError(error.message);
       setIsLoading(false);
       setStage("idle");
     },
   });
 
-  // 预处理大图片
   const preprocessImage = async (file: File): Promise<File> => {
     if (file.size <= 5 * 1024 * 1024) return file;
 
@@ -80,12 +87,11 @@ export default function Home() {
 
       ctx.drawImage(img, 0, 0, width, height);
       const blob = await new Promise<Blob>((resolve) =>
-        canvas.toBlob((b) => resolve(b || file), file.type, 0.8),
+        canvas.toBlob((b) => resolve(b ?? file), file.type, 0.8),
       );
 
       return new File([blob], file.name, { type: file.type });
     } catch (error) {
-      console.warn("Image preprocessing failed:", error);
       return file;
     }
   };
@@ -103,11 +109,6 @@ export default function Home() {
       });
 
       const processedFile = await preprocessImage(file);
-      console.log("File preprocessing:", {
-        originalSize: formatFileSize(file.size),
-        processedSize: formatFileSize(processedFile.size),
-        preprocessed: processedFile !== file,
-      });
 
       // 开始读取文件
       const base64 = await new Promise<string>((resolve, reject) => {
@@ -148,11 +149,10 @@ export default function Home() {
       await compressMutation.mutateAsync({
         imageBase64: base64,
         filename: processedFile.name,
-        mimeType: processedFile.type,
+        mimeType: processedFile.type as ImageMimeType,
         outputFormat: compressionOptions.outputFormat,
       });
     } catch (err) {
-      console.error("Error:", err);
       setError(err instanceof Error ? err.message : "Failed to process file");
       setIsLoading(false);
       setStage("idle");
@@ -170,101 +170,7 @@ export default function Home() {
     if (file) await handleFileSelect(file);
   };
 
-  // 渲染压缩结果
-  const renderCompressionResults = () => {
-    if (!uploadedFile) return null;
-
-    return (
-      <div className="mt-6 rounded-lg bg-gray-50 p-4">
-        <h3 className="mb-4 font-semibold">Compression Results</h3>
-        <div className="mb-4 flex items-center justify-between">
-          <div className="text-center">
-            <p className="text-sm text-gray-500">Original</p>
-            <p className="text-lg font-medium">
-              {formatFileSize(uploadedFile.size)}
-            </p>
-            <p className="text-xs uppercase text-gray-500">
-              {uploadedFile.type.split("/")[1]}
-            </p>
-          </div>
-          <div className="px-4">
-            <svg
-              className="h-6 w-6 text-gray-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M17 8l4 4m0 0l-4 4m4-4H3"
-              />
-            </svg>
-          </div>
-          <div className="text-center">
-            <p className="text-sm text-gray-500">Compressed</p>
-            {isLoading ? (
-              <div className="flex flex-col items-center">
-                <div className="mb-2">
-                  <div className="h-2 w-32 overflow-hidden rounded-full bg-gray-200">
-                    <div
-                      className="h-full rounded-full bg-blue-600 transition-all duration-300"
-                      style={{ width: `${progress}%` }}
-                    />
-                  </div>
-                  <p className="mt-1 text-xs text-gray-500">
-                    {Math.round(progress)}%
-                  </p>
-                </div>
-                <p className="text-sm text-blue-600">
-                  {stage === "uploading" && "Uploading..."}
-                  {stage === "compressing" && "Optimizing..."}
-                  {stage === "downloading" && "Downloading..."}
-                </p>
-              </div>
-            ) : (
-              compressionResult && (
-                <>
-                  <p className="text-lg font-medium text-green-600">
-                    {formatFileSize(compressionResult.compressedSize)}
-                  </p>
-                  <p className="text-xs uppercase text-gray-500">
-                    {compressionResult.outputType.split("/")[1]}
-                  </p>
-                </>
-              )
-            )}
-          </div>
-        </div>
-
-        {compressionResult && !isLoading && (
-          <a
-            href={compressionResult.compressedImage}
-            download={`optimized.${compressionResult.outputType.split("/")[1]}`}
-            className="inline-flex w-full items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
-          >
-            <svg
-              className="mr-2 h-4 w-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-              />
-            </svg>
-            Download Optimized Image
-          </a>
-        )}
-      </div>
-    );
-  };
-
-  const handleOptionChange = (option: string, value: any) => {
+  const handleOptionChange = (option: "outputFormat", value: ImageMimeType) => {
     setCompressionOptions((prev) => ({
       ...prev,
       [option]: value,
@@ -274,44 +180,42 @@ export default function Home() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-white px-4">
       <div className="flex w-full max-w-6xl flex-col gap-8 md:flex-row md:items-center md:justify-between">
-        {/* Left side content */}
         <div className="md:w-[45%]">
           <h1 className="mb-4 text-5xl font-bold text-black">
-            Image Optimizer
+            Online Image Compressor
           </h1>
           <p className="mb-6 text-xl text-gray-600">
-            Optimize your images with lossless compression. Support PNG, JPEG,
-            WebP and AVIF formats.
+            Free online tool to compress and optimize your images. Support WebP,
+            AVIF, PNG, and JPEG formats with best compression ratio.
           </p>
 
-          {/* Format selection */}
           <div className="mb-6">
-            <h2 className="mb-3 text-lg font-semibold">Output Format</h2>
+            <h2 className="mb-3 text-lg font-semibold">Choose Output Format</h2>
             <div className="flex flex-wrap gap-2">
               {[
                 {
                   id: "webp",
                   label: "WebP",
-                  desc: "(Recommended)",
-                  mime: "image/webp",
+                  desc: "(Recommended for web)",
+                  mime: "image/webp" as ImageMimeType,
                 },
                 {
                   id: "avif",
                   label: "AVIF",
                   desc: "(Best compression)",
-                  mime: "image/avif",
+                  mime: "image/avif" as ImageMimeType,
                 },
                 {
                   id: "png",
                   label: "PNG",
-                  desc: "(Lossless)",
-                  mime: "image/png",
+                  desc: "(Lossless quality)",
+                  mime: "image/png" as ImageMimeType,
                 },
                 {
                   id: "jpeg",
                   label: "JPEG",
-                  desc: "(Photos)",
-                  mime: "image/jpeg",
+                  desc: "(Best for photos)",
+                  mime: "image/jpeg" as ImageMimeType,
                 },
               ].map((format) => (
                 <button
@@ -332,11 +236,91 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Show compression results */}
-          {renderCompressionResults()}
+          {uploadedFile && (
+            <div className="mt-6 rounded-lg bg-gray-50 p-4">
+              <h3 className="mb-4 font-semibold">Image Compression Results</h3>
+              <div className="mb-4 flex items-center justify-between">
+                <div className="text-center">
+                  <p className="text-sm text-gray-500">Original</p>
+                  <p className="text-lg font-medium">
+                    {formatFileSize(uploadedFile.size)}
+                  </p>
+                  <p className="text-xs uppercase text-gray-500">
+                    {uploadedFile.type.split("/")[1]}
+                  </p>
+                </div>
+                <div className="px-4">
+                  <svg
+                    className="h-6 w-6 text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M17 8l4 4m0 0l-4 4m4-4H3"
+                    />
+                  </svg>
+                </div>
+                <div className="text-center">
+                  <p className="text-sm text-gray-500">Compressed</p>
+                  {isLoading ? (
+                    <div className="flex flex-col items-center">
+                      <div className="mb-2">
+                        <div className="h-2 w-32 overflow-hidden rounded-full bg-gray-200">
+                          <div
+                            className="h-full rounded-full bg-blue-600 transition-all duration-300"
+                            style={{ width: `${progress}%` }}
+                          />
+                        </div>
+                        <p className="mt-1 text-xs text-gray-500">
+                          {Math.round(progress)}%
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    compressionResult && (
+                      <>
+                        <p className="text-lg font-medium text-green-600">
+                          {formatFileSize(compressionResult.compressedSize)}
+                        </p>
+                        <p className="text-xs uppercase text-gray-500">
+                          {compressionResult.outputType.split("/")[1]}
+                        </p>
+                      </>
+                    )
+                  )}
+                </div>
+              </div>
+
+              {compressionResult && !isLoading && (
+                <a
+                  href={compressionResult.compressedImage}
+                  download={`optimized.${compressionResult.outputType.split("/")[1]}`}
+                  className="inline-flex w-full items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+                >
+                  <svg
+                    className="mr-2 h-4 w-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                    />
+                  </svg>
+                  Download Optimized Image
+                </a>
+              )}
+            </div>
+          )}
         </div>
 
-        {/* Right side upload area */}
         <div className="md:w-[45%]">
           <div
             className={`rounded-xl border-2 border-dashed ${
@@ -353,7 +337,7 @@ export default function Home() {
                   <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-blue-600"></div>
                 </div>
                 <h2 className="mb-2 text-xl font-medium text-blue-600">
-                  Processing your image...
+                  Processing Your Image...
                 </h2>
               </>
             ) : (
@@ -373,11 +357,9 @@ export default function Home() {
                     />
                   </svg>
                 </div>
-                <h2 className="mb-2 text-xl font-medium">
-                  Drop your image here
-                </h2>
+                <h2 className="mb-2 text-xl font-medium">Upload Your Image</h2>
                 <p className="mb-4 text-sm text-gray-500">
-                  Supports PNG, JPEG, WebP • Up to 10MB
+                  Supports PNG, JPEG, WebP • Free • No Registration Required
                 </p>
                 <input
                   type="file"

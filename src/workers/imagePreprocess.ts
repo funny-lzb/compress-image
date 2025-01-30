@@ -1,7 +1,11 @@
 /* eslint-disable no-restricted-globals */
 const worker = self as unknown as Worker;
 
-worker.onmessage = async (e) => {
+interface WorkerMessage {
+  file: Blob;
+}
+
+worker.onmessage = async (e: MessageEvent<WorkerMessage>) => {
     const { file } = e.data;
     
     try {
@@ -10,9 +14,9 @@ worker.onmessage = async (e) => {
     } catch (error) {
       worker.postMessage({ error: error instanceof Error ? error.message : 'Unknown error' });
     }
-  };
+};
   
-  async function preprocessImage(file: Blob): Promise<Blob> {
+async function preprocessImage(file: Blob): Promise<Blob> {
     if (file.size <= 5 * 1024 * 1024) { // 小于5MB直接返回
       return file;
     }
