@@ -6,25 +6,13 @@ import { type Metadata } from "next";
 import { TRPCReactProvider } from "~/trpc/react";
 
 export const metadata: Metadata = {
-  title: "Online Image Compressor | Free WebP, AVIF, PNG, JPEG Optimizer",
+  title: "WebP to PNG Converter | Free Online Image Compressor & Converter",
   description:
-    "Free online image compressor that reduces image size without losing quality. Convert and compress images to WebP, AVIF, PNG, or JPEG format. No upload limits, no registration required.",
-  keywords: [
-    "online image compressor",
-    "free image compressor",
-    "image optimizer",
-    "webp converter",
-    "avif converter",
-    "compress images online",
-    "reduce image size",
-    "image compression tool",
-    "photo optimizer",
-    "picture compressor",
-  ],
+    "Convert WebP to PNG online instantly. Free tool to convert and compress images between WebP, PNG, JPEG formats. Best image compressor with no quality loss, no file size limits, no registration required.",
   openGraph: {
-    title: "Online Image Compressor | Free WebP, AVIF, PNG, JPEG Optimizer",
+    title: "WebP to PNG Converter | Free Online Image Compressor & Converter",
     description:
-      "Free online tool to compress and optimize your images. Support WebP, AVIF, PNG, and JPEG formats with best compression ratio.",
+      "Convert WebP to PNG online instantly. Free tool to convert and compress images between WebP, PNG, JPEG formats. Best quality compression with no limits.",
   },
   icons: [{ rel: "icon", url: "/icon.png" }],
   verification: {
