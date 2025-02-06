@@ -17,6 +17,9 @@ export const metadata: Metadata = {
       "Convert WebP to PNG online instantly. Free tool to convert and compress images between WebP, PNG, JPEG formats. Best quality compression with no limits.",
   },
   icons: [{ rel: "icon", url: "/icon.png" }],
+  verification: {
+    google: "dFZuin9u5BNacxPrh9n9XbqolGofhDtxCjQOx6C2k9Q",
+  },
 };
 
 export default function RootLayout({
