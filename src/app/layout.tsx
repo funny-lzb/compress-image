@@ -4,6 +4,7 @@ import { GeistSans } from "geist/font/sans";
 import { type Metadata } from "next";
 
 import { TRPCReactProvider } from "~/trpc/react";
+import GoogleAnalytics from "./(components)/GoogleAnalytics";
 
 export const metadata: Metadata = {
   title: "WebP to PNG Converter | Free Online Image Compressor & Converter",
@@ -27,6 +28,7 @@ export default function RootLayout({
     <html lang="en" className={`${GeistSans.variable}`}>
       <body>
         <TRPCReactProvider>{children}</TRPCReactProvider>
+        {process.env.NODE_ENV === "production" && <GoogleAnalytics />}
       </body>
     </html>
   );
