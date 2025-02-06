@@ -37,7 +37,6 @@ const FAQItem = ({
   answer: string;
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-
   return (
     <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
       <button

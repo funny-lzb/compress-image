@@ -3,6 +3,12 @@ import ReactGA from "react-ga4";
 const initializeGA = () => {
   if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS) {
     ReactGA.initialize(process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS);
+    ReactGA.send({
+      hitType: "pageview",
+      page: window.location.pathname
+    });
+  } else {
+   
   }
 };
 

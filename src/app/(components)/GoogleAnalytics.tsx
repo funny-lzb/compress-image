@@ -14,6 +14,7 @@ const GoogleAnalytics: React.FC = () => {
     if (!window.GA_INITIALIZED) {
       initializeGA();
       window.GA_INITIALIZED = true;
+    } else {
     }
   }, []);
 
