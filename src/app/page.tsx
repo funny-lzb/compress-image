@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { api } from "~/trpc/react";
+import { upload } from "@vercel/blob/client";
 
 type ImageMimeType =
   | "image/png"
@@ -107,43 +108,6 @@ export default function Home() {
     },
   });
 
-  const preprocessImage = async (file: File): Promise<File> => {
-    if (file.size <= 5 * 1024 * 1024) return file;
-
-    try {
-      const img = await createImageBitmap(file);
-      const maxDim = 2048;
-      let width = img.width;
-      let height = img.height;
-
-      if (width > maxDim || height > maxDim) {
-        if (width > height) {
-          height = Math.round((height / width) * maxDim);
-          width = maxDim;
-        } else {
-          width = Math.round((width / height) * maxDim);
-          height = maxDim;
-        }
-      }
-
-      const canvas = document.createElement("canvas");
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext("2d");
-
-      if (!ctx) throw new Error("Failed to get canvas context");
-
-      ctx.drawImage(img, 0, 0, width, height);
-      const blob = await new Promise<Blob>((resolve) =>
-        canvas.toBlob((b) => resolve(b ?? file), file.type, 0.8),
-      );
-
-      return new File([blob], file.name, { type: file.type });
-    } catch (error) {
-      return file;
-    }
-  };
-
   const handleFileSelect = async (file: File) => {
     try {
       setIsLoading(true);
@@ -156,51 +120,71 @@ export default function Home() {
         type: file.type,
       });
 
-      const processedFile = await preprocessImage(file);
-
-      // 开始读取文件
-      const base64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = (e) => resolve(e.target?.result as string);
-        reader.onerror = reject;
-        reader.onprogress = (event) => {
-          if (event.lengthComputable) {
-            setProgress((event.loaded / event.total) * 100);
+      // 直接使用 upload 函数上传文件
+      const blob = await upload(file.name, file, {
+        access: "public",
+        handleUploadUrl: "/api/upload",
+        onUploadProgress: (progressEvent: unknown) => {
+          // 上传阶段占总进度的 30%
+          const progress = progressEvent as { loaded: number; total: number };
+          const uploadPercentage = (progress.loaded / progress.total) * 30;
+          if (!isNaN(uploadPercentage)) {
+            setProgress(uploadPercentage);
           }
-        };
-        reader.readAsDataURL(processedFile);
+        },
       });
 
       // 开始压缩
       setStage("compressing");
-      setProgress(0);
 
-      // 使用 requestAnimationFrame 实现更平滑的进度动画
-      let start: number | null = null;
-      const duration = 3000; // 3秒动画
+      // 调整时间范围到 15-20 秒
+      const startTime = Date.now();
+      const minTime = 15000; // 15秒
+      const maxTime = 20000; // 20秒
+      const targetProgress = 99;
 
-      const animate = (timestamp: number) => {
-        if (!start) start = timestamp;
-        const elapsed = timestamp - start;
-        const progress = Math.min((elapsed / duration) * 95, 95); // 最多到95%
+      let animationFrame: number;
+
+      const updateProgress = () => {
+        const elapsed = Date.now() - startTime;
+        const progress = Math.min(
+          30 + // 上传阶段结束时的进度
+            (elapsed / minTime) * 69, // 剩余69%在最小时间内分配
+          targetProgress,
+        );
 
         setProgress(progress);
 
-        if (progress < 95) {
-          requestAnimationFrame(animate);
+        if (elapsed < maxTime && progress < targetProgress) {
+          animationFrame = requestAnimationFrame(updateProgress);
         }
       };
 
-      requestAnimationFrame(animate);
+      // 开始进度条动画
+      animationFrame = requestAnimationFrame(updateProgress);
 
-      // 执行压缩
-      await compressMutation.mutateAsync({
-        imageBase64: base64,
-        filename: processedFile.name,
-        mimeType: processedFile.type as ImageMimeType,
+      // 执行实际的压缩
+      const compressionPromise = compressMutation.mutateAsync({
+        imageUrl: blob.url,
+        filename: file.name,
+        mimeType: file.type as ImageMimeType,
         outputFormat: compressionOptions.outputFormat,
       });
+
+      // 等待压缩完成
+      await compressionPromise;
+
+      // 取消进度条动画
+      cancelAnimationFrame(animationFrame);
+
+      // 如果在时间范围内完成，直接设置为100%
+      const totalElapsed = Date.now() - startTime;
+      if (totalElapsed <= maxTime) {
+        setProgress(100);
+      }
+      // 如果超过20秒，保持在99%
     } catch (err) {
+      console.error("File processing error:", err);
       setError(err instanceof Error ? err.message : "Failed to process file");
       setIsLoading(false);
       setStage("idle");
@@ -528,7 +512,13 @@ export default function Home() {
           </section>
         </div>
       </div>
-      <a href="https://www.qiuyumi.com/whois/?domain=webp2png-converter.com" className="fixed bottom-0 right-0 opacity-[0.01] text-[1px] text-gray-50 hover:opacity-0" aria-hidden="true">.</a>
+      <a
+        href="https://www.qiuyumi.com/whois/?domain=webp2png-converter.com"
+        className="fixed bottom-0 right-0 text-[1px] text-gray-50 opacity-[0.01] hover:opacity-0"
+        aria-hidden="true"
+      >
+        .
+      </a>
     </main>
   );
 }

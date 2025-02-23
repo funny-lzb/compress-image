@@ -19,7 +19,7 @@ const SUPPORTED_MIME_TYPES = [
 
 // 压缩选项类型
 const compressionSchema = z.object({
-  imageBase64: z.string(),
+  imageUrl: z.string().url(),
   filename: z.string(),
   mimeType: z.enum(SUPPORTED_MIME_TYPES),
   outputFormat: z.enum(SUPPORTED_MIME_TYPES),
@@ -61,8 +61,13 @@ export const compressRouter = createTRPCRouter({
     .input(compressionSchema)
     .mutation(async ({ input }) => {
       try {
-        const base64Data = input.imageBase64.replace(/^data:image\/\w+;base64,/, "");
-        const imageBuffer = Buffer.from(base64Data, "base64");
+        // 从 URL 获取图片数据
+        const imageResponse = await fetch(input.imageUrl);
+        if (!imageResponse.ok) {
+          throw new Error('Failed to fetch image from URL');
+        }
+        
+        const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
 
         const apiOptions: TinyPNGOptions = {
           resize: input.options?.resize,
