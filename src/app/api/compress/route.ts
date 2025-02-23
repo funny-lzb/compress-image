@@ -78,30 +78,77 @@ export async function POST(request: NextRequest) {
     
     // 如果需要转换格式
     if (validatedInput.outputFormat !== validatedInput.mimeType) {
+      // 构建完整的 API 选项
+      const apiOptions = {
+        convert: { type: validatedInput.outputFormat },
+        preserve: ["copyright", "creation", "location"], // 保留元数据
+      };
+
+      // 使用 POST 请求进行格式转换
       const convertResponse = await fetch(data.output.url, {
-        method: "GET",
+        method: "POST",
+        body: JSON.stringify(apiOptions),
         headers: {
+          "Content-Type": "application/json",
           Authorization: `Basic ${Buffer.from(`api:${tinypngApiKey}`).toString("base64")}`,
         },
       });
 
       if (!convertResponse.ok) {
+        console.error('Convert response error:', await convertResponse.text());
         return NextResponse.json(
           { error: "Failed to convert image format" },
           { status: 400 }
         );
       }
 
-      // 直接获取二进制数据
-      const compressedImageBuffer = await convertResponse.arrayBuffer();
-      const compressedBase64 = Buffer.from(compressedImageBuffer).toString("base64");
+      // 检查响应类型
+      const contentType = convertResponse.headers.get("content-type");
+      let finalImageBuffer: ArrayBuffer;
+
+      if (contentType?.includes("application/json")) {
+        // 如果返回 JSON，需要再次获取转换后的图片
+        const convertData = await convertResponse.json() as TinyPNGResponse;
+        const imageResponse = await fetch(convertData.output.url, {
+          headers: {
+            Authorization: `Basic ${Buffer.from(`api:${tinypngApiKey}`).toString("base64")}`,
+          },
+        });
+        
+        if (!imageResponse.ok) {
+          return NextResponse.json(
+            { error: "Failed to fetch converted image" },
+            { status: 400 }
+          );
+        }
+        
+        finalImageBuffer = await imageResponse.arrayBuffer();
+      } else {
+        // 直接获取转换后的图片数据
+        finalImageBuffer = await convertResponse.arrayBuffer();
+      }
+
+      // 对于 PNG 格式，检查文件大小比例
+      if (validatedInput.outputFormat === 'image/png') {
+        const sizeRatio = finalImageBuffer.byteLength / imageBuffer.byteLength;
+        // PNG 通常应该比较大
+        if (sizeRatio < 0.8) { // 如果小于原始大小的 80%
+          console.warn(`PNG conversion resulted in unexpected size reduction (ratio: ${sizeRatio.toFixed(2)})`);
+          return NextResponse.json(
+            { error: "PNG conversion resulted in unexpected quality loss" },
+            { status: 400 }
+          );
+        }
+      }
+
+      const compressedBase64 = Buffer.from(finalImageBuffer).toString("base64");
 
       return NextResponse.json({
         success: true,
         originalSize: imageBuffer.byteLength,
-        compressedSize: compressedImageBuffer.byteLength,
-        savedBytes: Math.max(0, imageBuffer.byteLength - compressedImageBuffer.byteLength),
-        compressionRatio: Math.round(((imageBuffer.byteLength - compressedImageBuffer.byteLength) / imageBuffer.byteLength) * 100),
+        compressedSize: finalImageBuffer.byteLength,
+        savedBytes: Math.max(0, imageBuffer.byteLength - finalImageBuffer.byteLength),
+        compressionRatio: Math.round(((imageBuffer.byteLength - finalImageBuffer.byteLength) / imageBuffer.byteLength) * 100),
         compressedImage: `data:${validatedInput.outputFormat};base64,${compressedBase64}`,
         originalType: validatedInput.mimeType,
         outputType: validatedInput.outputFormat,

@@ -125,6 +125,21 @@ export default function Home() {
         type: file.type,
       });
 
+      // 验证文件类型
+      if (!SUPPORTED_MIME_TYPES.includes(file.type as ImageMimeType)) {
+        throw new Error(
+          "Unsupported file type. Please upload a PNG, JPEG, or WebP image.",
+        );
+      }
+
+      // 验证文件大小
+      if (file.size > 10 * 1024 * 1024) {
+        // 10MB
+        throw new Error(
+          "File size too large. Please upload an image smaller than 10MB.",
+        );
+      }
+
       // 上传文件到 Vercel Blob
       const blob = await upload(file.name, file, {
         access: "public",
@@ -177,7 +192,7 @@ export default function Home() {
         body: JSON.stringify({
           imageUrl: blob.url,
           filename: file.name,
-          mimeType: file.type,
+          mimeType: file.type as ImageMimeType,
           outputFormat: compressionOptions.outputFormat,
         }),
       });
@@ -563,3 +578,12 @@ if (typeof document !== "undefined") {
   styleSheet.textContent = styles;
   document.head.appendChild(styleSheet);
 }
+
+// 添加支持的 MIME 类型常量
+const SUPPORTED_MIME_TYPES = [
+  "image/png",
+  "image/jpeg",
+  "image/jpg",
+  "image/webp",
+  "image/avif",
+] as const;
