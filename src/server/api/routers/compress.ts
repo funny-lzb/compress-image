@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { createTRPCRouter, publicProcedure } from "../trpc";
+import { createTRPCRouter, longRunningProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
 
 const tinypngApiKey = process.env.TINY_PNG_API_KEY;
@@ -57,7 +57,7 @@ interface TinyPNGResponse {
 }
 
 export const compressRouter = createTRPCRouter({
-  compress: publicProcedure
+  compress: longRunningProcedure
     .input(compressionSchema)
     .mutation(async ({ input }) => {
       try {

@@ -94,6 +94,39 @@ const timingMiddleware = t.middleware(async ({ next, path }) => {
 });
 
 /**
+ * Long running procedure for operations that might take more time
+ * This skips the artificial delay and has a longer timeout
+ */
+const longRunningMiddleware = t.middleware(async (opts) => {
+  const start = Date.now();
+  
+  try {
+    const nextResult = await opts.next();
+    
+    const result = await Promise.race([
+      Promise.resolve(nextResult),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Operation timed out')), 30000)
+      )
+    ]);
+
+    const end = Date.now();
+    console.log(`[TRPC] ${opts.path} took ${end - start}ms to execute`);
+    
+    return nextResult;
+  } catch (error) {
+    const end = Date.now();
+    console.error(`[TRPC] ${opts.path} failed after ${end - start}ms:`, error);
+    
+    throw error instanceof Error 
+      ? error 
+      : new Error('Unknown error occurred');
+  }
+});
+
+export const longRunningProcedure = t.procedure.use(longRunningMiddleware);
+
+/**
  * Public (unauthenticated) procedure
  *
  * This is the base piece you use to build new queries and mutations on your tRPC API. It does not
