@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
+export const maxDuration = 60; // 1分钟，通常足够完成大多数生成任务
+
+
 const SUPPORTED_MIME_TYPES = [
   'image/png',
   'image/jpeg',
