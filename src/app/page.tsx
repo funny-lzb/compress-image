@@ -12,6 +12,7 @@ type ImageMimeType =
   | "image/avif";
 
 interface CompressionResult {
+  success: boolean;
   originalSize: number;
   compressedSize: number;
   savedBytes: number;
@@ -19,6 +20,10 @@ interface CompressionResult {
   compressedImage: string;
   originalType: string;
   outputType: string;
+}
+
+interface ApiErrorResponse {
+  error: string;
 }
 
 function formatFileSize(bytes: number): string {
@@ -120,7 +125,7 @@ export default function Home() {
         type: file.type,
       });
 
-      // 直接使用 upload 函数上传文件
+      // 上传文件到 Vercel Blob
       const blob = await upload(file.name, file, {
         access: "public",
         handleUploadUrl: "/api/upload",
@@ -163,26 +168,43 @@ export default function Home() {
       // 开始进度条动画
       animationFrame = requestAnimationFrame(updateProgress);
 
-      // 执行实际的压缩
-      const compressionPromise = compressMutation.mutateAsync({
-        imageUrl: blob.url,
-        filename: file.name,
-        mimeType: file.type as ImageMimeType,
-        outputFormat: compressionOptions.outputFormat,
+      // 调用新的压缩 API
+      const response = await fetch("/api/compress", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          imageUrl: blob.url,
+          filename: file.name,
+          mimeType: file.type,
+          outputFormat: compressionOptions.outputFormat,
+        }),
       });
 
-      // 等待压缩完成
-      await compressionPromise;
+      if (!response.ok) {
+        const errorData = (await response.json()) as ApiErrorResponse;
+        throw new Error(errorData.error || "Failed to compress image");
+      }
+
+      const result = (await response.json()) as CompressionResult;
+
+      // 验证结果包含所有必需的字段
+      if (
+        !result.compressedImage ||
+        typeof result.originalSize !== "number" ||
+        typeof result.compressedSize !== "number"
+      ) {
+        throw new Error("Invalid compression result received");
+      }
 
       // 取消进度条动画
       cancelAnimationFrame(animationFrame);
 
-      // 如果在时间范围内完成，直接设置为100%
-      const totalElapsed = Date.now() - startTime;
-      if (totalElapsed <= maxTime) {
-        setProgress(100);
-      }
-      // 如果超过20秒，保持在99%
+      setCompressionResult(result);
+      setIsLoading(false);
+      setStage("idle");
+      setProgress(100);
     } catch (err) {
       console.error("File processing error:", err);
       setError(err instanceof Error ? err.message : "Failed to process file");
