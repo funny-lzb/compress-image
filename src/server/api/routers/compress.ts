@@ -153,22 +153,30 @@ export const compressRouter = createTRPCRouter({
         const savedBytes = originalSize - compressedSize;
         const compressionRatio = Math.round((savedBytes / originalSize) * 100);
 
-        return {
+        // 确保返回有效的数据结构，不要返回 null
+        const result = {
           success: true,
-          originalSize,
-          compressedSize,
-          savedBytes,
-          compressionRatio,
-          compressedImage: `data:${input.mimeType};base64,${compressedBase64}`,
+          originalSize: imageBuffer.length,
+          compressedSize: compressedImageBuffer.byteLength,
+          savedBytes: Math.max(0, imageBuffer.length - compressedImageBuffer.byteLength),
+          compressionRatio: Math.round(((imageBuffer.length - compressedImageBuffer.byteLength) / imageBuffer.length) * 100),
+          compressedImage: `data:${input.outputFormat};base64,${compressedBase64}`,
           originalType: input.mimeType,
-          outputType: data.output.type || input.mimeType,
+          outputType: input.outputFormat,
         };
 
-      } catch (error) {
-        if (error instanceof TRPCError) {
-          throw error;
+        // 验证返回的数据
+        if (!result.compressedImage) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Failed to generate compressed image",
+          });
         }
-        throw new TRPCError({
+
+        return result;
+      } catch (error) {
+        console.error("Compression error:", error);
+        throw error instanceof TRPCError ? error : new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: error instanceof Error ? error.message : "Failed to compress image",
           cause: error,
