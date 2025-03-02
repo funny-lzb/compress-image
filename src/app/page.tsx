@@ -549,13 +549,6 @@ export default function Home() {
           </section>
         </div>
       </div>
-      <a
-        href="https://www.qiuyumi.com/whois/?domain=webp2png-converter.com"
-        className="fixed bottom-0 right-0 text-[1px] text-gray-50 opacity-[0.01] hover:opacity-0"
-        aria-hidden="true"
-      >
-        .
-      </a>
     </main>
   );
 }
