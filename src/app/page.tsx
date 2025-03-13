@@ -547,6 +547,28 @@ export default function Home() {
               ))}
             </div>
           </section>
+
+          <section className="flex flex-col gap-4">
+            <h2 className="text-2xl font-semibold text-black">
+              Friendly Links
+            </h2>
+            <div className="flex gap-6">
+              <a
+                href="https://basketballbros.net/"
+                target="_blank"
+                className="text-blue-600 hover:text-blue-800 hover:underline"
+              >
+                Basketball bros
+              </a>
+              <a
+                href="https://narrow-one.net/"
+                target="_blank"
+                className="text-blue-600 hover:text-blue-800 hover:underline"
+              >
+                Narrow one
+              </a>
+            </div>
+          </section>
         </div>
       </div>
     </main>
