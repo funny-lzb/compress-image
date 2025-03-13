@@ -567,6 +567,20 @@ export default function Home() {
               >
                 Narrow one
               </a>
+              <a
+                href="https://football-bros.net/"
+                target="_blank"
+                className="text-blue-600 hover:text-blue-800 hover:underline"
+              >
+                Football bros
+              </a>
+              <a
+                href="https://sand-tetris.online/"
+                target="_blank"
+                className="text-blue-600 hover:text-blue-800 hover:underline"
+              >
+                Sand tetris
+              </a>
             </div>
           </section>
         </div>
