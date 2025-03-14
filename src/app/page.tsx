@@ -581,6 +581,13 @@ export default function Home() {
               >
                 Sand tetris
               </a>
+              <a
+                href="https://gemma-3.net"
+                target="_blank"
+                className="text-blue-600 hover:text-blue-800 hover:underline"
+              >
+                gemma 3
+              </a>
             </div>
           </section>
         </div>
