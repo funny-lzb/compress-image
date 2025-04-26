@@ -588,6 +588,13 @@ export default function Home() {
               >
                 gemma 3
               </a>
+              <a
+                href="https://doodle-baseball.io/"
+                target="_blank"
+                className="text-blue-600 hover:text-blue-800 hover:underline"
+              >
+                Doodle baseball
+              </a>
             </div>
           </section>
         </div>
